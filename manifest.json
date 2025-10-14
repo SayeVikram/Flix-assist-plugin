@@ -5,7 +5,7 @@
   "description": "Find Netflix content by country and auto-connect to Surfshark VPN",
   "permissions": [
     "storage",
-    "nativeMessaging"
+    "management"
   ],
   "host_permissions": [
     "https://unogs-unogs-v1.p.rapidapi.com/*"

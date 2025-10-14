@@ -161,22 +161,22 @@ class FlixAssistPopup {
     }
 
     btn.classList.add('connecting');
-    btn.textContent = 'Connecting...';
+    btn.innerHTML = '<span>⏳</span><span>Opening Surfshark...</span>';
 
     try {
       const vpn = new VPNController();
       const success = await vpn.connectToCountry(countryCode);
       
       if (success) {
-        this.showToast(`Connected to ${btn.dataset.country}!`, 'success');
+        this.showToast(`Surfshark extension opened! Please connect to ${this.getCountryName(countryCode)}.`, 'success');
         this.updateVPNStatus(true);
         this.addToFavorites(title, countryCode);
       } else {
-        throw new Error('Connection failed');
+        throw new Error('Failed to open Surfshark extension');
       }
     } catch (error) {
       console.error('VPN connection error:', error);
-      this.showToast('Failed to connect to VPN', 'error');
+      this.showToast(error.message || 'Failed to connect to VPN', 'error');
     } finally {
       btn.classList.remove('connecting');
       btn.innerHTML = `
@@ -299,21 +299,21 @@ class FlixAssistPopup {
 
   async loadSettingsForm() {
     document.getElementById('apiKey').value = this.settings.apiKey || '';
-    document.getElementById('vpnPath').value = this.settings.vpnPath || '';
     document.getElementById('autoConnect').checked = this.settings.autoConnect || false;
     document.getElementById('darkMode').checked = this.settings.darkMode || false;
+    
+    // Check Surfshark extension status
+    await this.checkSurfsharkExtensionStatus();
   }
 
   async saveSettings() {
     const apiKey = document.getElementById('apiKey').value.trim();
-    const vpnPath = document.getElementById('vpnPath').value.trim();
     const autoConnect = document.getElementById('autoConnect').checked;
     const darkMode = document.getElementById('darkMode').checked;
 
     this.settings = {
       ...this.settings,
       apiKey,
-      vpnPath,
       autoConnect,
       darkMode
     };
@@ -330,6 +330,33 @@ class FlixAssistPopup {
       this.showToast(`VPN Status: ${status}`, status === 'connected' ? 'success' : 'warning');
     } catch (error) {
       this.showToast('Failed to connect to VPN service', 'error');
+    }
+  }
+
+  async checkSurfsharkExtensionStatus() {
+    try {
+      const vpn = new VPNController();
+      const isInstalled = await vpn.checkSurfsharkExtension();
+      
+      const statusElement = document.getElementById('surfsharkStatus');
+      const statusDot = statusElement.querySelector('.status-dot');
+      const statusText = statusElement.querySelector('.status-text');
+      
+      if (isInstalled) {
+        statusDot.className = 'status-dot connected';
+        statusText.textContent = 'Surfshark extension installed';
+      } else {
+        statusDot.className = 'status-dot disconnected';
+        statusText.textContent = 'Surfshark extension not found';
+      }
+    } catch (error) {
+      console.error('Error checking Surfshark extension:', error);
+      const statusElement = document.getElementById('surfsharkStatus');
+      const statusDot = statusElement.querySelector('.status-dot');
+      const statusText = statusElement.querySelector('.status-text');
+      
+      statusDot.className = 'status-dot disconnected';
+      statusText.textContent = 'Error checking extension';
     }
   }
 

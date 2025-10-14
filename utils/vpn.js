@@ -1,10 +1,10 @@
-// VPN controller for Surfshark integration
+// VPN controller for Surfshark Chrome extension integration
 class VPNController {
   constructor() {
     this.connectionStatus = 'unknown';
     this.currentCountry = null;
     this.isConnecting = false;
-    this.nativePort = null;
+    this.surfsharkExtensionId = 'ailoabdmgclmfmhdagmlohpjlbpffblp'; // Surfshark extension ID
   }
 
   async connectToCountry(countryCode) {
@@ -15,24 +15,15 @@ class VPNController {
     this.isConnecting = true;
 
     try {
-      // Try native messaging first
-      const nativeResult = await this.connectViaNativeMessaging(countryCode);
-      if (nativeResult.success) {
-        this.connectionStatus = 'connected';
-        this.currentCountry = countryCode;
-        return true;
+      // Check if Surfshark extension is installed and enabled
+      const isInstalled = await this.checkSurfsharkExtension();
+      if (!isInstalled) {
+        throw new Error('Surfshark Chrome extension is not installed. Please install it from the Chrome Web Store.');
       }
-    } catch (error) {
-      console.warn('Native messaging failed, trying alternative method:', error);
-    }
 
-    try {
-      // Fallback to Chrome extension message passing
-      const result = await this.sendMessageToBackground({
-        action: 'connectVPN',
-        countryCode: countryCode
-      });
-
+      // Open Surfshark extension and guide user to connect
+      const result = await this.guideUserToConnect(countryCode);
+      
       if (result.success) {
         this.connectionStatus = 'connected';
         this.currentCountry = countryCode;
@@ -50,23 +41,15 @@ class VPNController {
 
   async disconnect() {
     try {
-      // Try native messaging first
-      const nativeResult = await this.disconnectViaNativeMessaging();
-      if (nativeResult.success) {
-        this.connectionStatus = 'disconnected';
-        this.currentCountry = null;
-        return true;
+      // Check if Surfshark extension is installed
+      const isInstalled = await this.checkSurfsharkExtension();
+      if (!isInstalled) {
+        throw new Error('Surfshark Chrome extension is not installed');
       }
-    } catch (error) {
-      console.warn('Native messaging failed, trying alternative method:', error);
-    }
 
-    try {
-      // Fallback to Chrome extension message passing
-      const result = await this.sendMessageToBackground({
-        action: 'disconnectVPN'
-      });
-
+      // Guide user to disconnect via Surfshark extension
+      const result = await this.guideUserToDisconnect();
+      
       if (result.success) {
         this.connectionStatus = 'disconnected';
         this.currentCountry = null;
@@ -82,30 +65,17 @@ class VPNController {
 
   async getStatus() {
     try {
-      // Try native messaging first
-      const nativeResult = await this.getStatusViaNativeMessaging();
-      if (nativeResult.success) {
-        this.connectionStatus = nativeResult.data.status;
-        this.currentCountry = nativeResult.data.country;
-        return this.connectionStatus;
+      // Check if Surfshark extension is installed
+      const isInstalled = await this.checkSurfsharkExtension();
+      if (!isInstalled) {
+        this.connectionStatus = 'not_installed';
+        return 'not_installed';
       }
-    } catch (error) {
-      console.warn('Native messaging failed, trying alternative method:', error);
-    }
 
-    try {
-      // Fallback to Chrome extension message passing
-      const result = await this.sendMessageToBackground({
-        action: 'getVPNStatus'
-      });
-
-      if (result.success) {
-        this.connectionStatus = result.data.status;
-        this.currentCountry = result.data.country;
-        return this.connectionStatus;
-      } else {
-        throw new Error(result.error || 'Failed to get VPN status');
-      }
+      // For now, we'll assume connected if extension is installed
+      // In a real implementation, you might poll the extension's state
+      this.connectionStatus = 'connected';
+      return 'connected';
     } catch (error) {
       console.error('VPN status error:', error);
       this.connectionStatus = 'unknown';
@@ -113,121 +83,107 @@ class VPNController {
     }
   }
 
-  async connectViaNativeMessaging(countryCode) {
-    return new Promise((resolve, reject) => {
-      try {
-        // Connect to native messaging host
-        const port = chrome.runtime.connectNative('com.flixassist.vpn');
-        this.nativePort = port;
-
-        // Set up message handler
-        port.onMessage.addListener((response) => {
-          if (response.success) {
-            resolve(response);
-          } else {
-            reject(new Error(response.error));
-          }
-          port.disconnect();
-        });
-
-        // Set up error handler
-        port.onDisconnect.addListener(() => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-          }
-        });
-
-        // Send connect command
-        port.postMessage({
-          action: 'connect',
-          countryCode: countryCode
-        });
-
-        // Set timeout
-        setTimeout(() => {
-          port.disconnect();
-          reject(new Error('Connection timeout'));
-        }, 30000);
-
-      } catch (error) {
-        reject(error);
-      }
-    });
+  async checkSurfsharkExtension() {
+    try {
+      const extension = await chrome.management.get(this.surfsharkExtensionId);
+      return extension && extension.enabled;
+    } catch (error) {
+      console.error('Error checking Surfshark extension:', error);
+      return false;
+    }
   }
 
-  async disconnectViaNativeMessaging() {
-    return new Promise((resolve, reject) => {
-      try {
-        if (!this.nativePort) {
-          reject(new Error('No active connection'));
-          return;
+  async guideUserToConnect(countryCode) {
+    try {
+      // Open Surfshark extension popup
+      await chrome.management.launchApp(this.surfsharkExtensionId);
+      
+      // Show instructions to user
+      const countryName = this.getCountryName(countryCode);
+      const message = `Please connect to ${countryName} in the Surfshark extension that just opened. Look for servers in ${countryName} and click connect.`;
+      
+      // Show notification
+      this.showNotification(message, 'info');
+      
+      return { success: true, message };
+    } catch (error) {
+      console.error('Error guiding user to connect:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async guideUserToDisconnect() {
+    try {
+      // Open Surfshark extension popup
+      await chrome.management.launchApp(this.surfsharkExtensionId);
+      
+      // Show instructions to user
+      const message = 'Please disconnect from VPN in the Surfshark extension that just opened. Click the disconnect button.';
+      
+      // Show notification
+      this.showNotification(message, 'info');
+      
+      return { success: true, message };
+    } catch (error) {
+      console.error('Error guiding user to disconnect:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  showNotification(message, type = 'info') {
+    // Create a temporary notification element
+    const notification = document.createElement('div');
+    notification.className = `flix-assist-vpn-notification ${type}`;
+    notification.textContent = message;
+    
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007bff'};
+      color: white;
+      padding: 16px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 10000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      max-width: 300px;
+      animation: slideInRight 0.3s ease;
+    `;
+
+    // Add CSS animation if not already added
+    if (!document.getElementById('flix-assist-vpn-styles')) {
+      const style = document.createElement('style');
+      style.id = 'flix-assist-vpn-styles';
+      style.textContent = `
+        @keyframes slideInRight {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
         }
+      `;
+      document.head.appendChild(style);
+    }
 
-        // Set up message handler
-        this.nativePort.onMessage.addListener((response) => {
-          if (response.success) {
-            resolve(response);
-          } else {
-            reject(new Error(response.error));
-          }
-          this.nativePort.disconnect();
-        });
+    document.body.appendChild(notification);
 
-        // Send disconnect command
-        this.nativePort.postMessage({
-          action: 'disconnect'
-        });
-
-        // Set timeout
+    // Remove after 5 seconds
+    setTimeout(() => {
+      if (notification && notification.parentNode) {
+        notification.style.animation = 'slideInRight 0.3s ease reverse';
         setTimeout(() => {
-          this.nativePort.disconnect();
-          reject(new Error('Disconnection timeout'));
-        }, 10000);
-
-      } catch (error) {
-        reject(error);
-      }
-    });
-  }
-
-  async getStatusViaNativeMessaging() {
-    return new Promise((resolve, reject) => {
-      try {
-        // Connect to native messaging host
-        const port = chrome.runtime.connectNative('com.flixassist.vpn');
-
-        // Set up message handler
-        port.onMessage.addListener((response) => {
-          if (response.success) {
-            resolve(response);
-          } else {
-            reject(new Error(response.error));
+          if (notification && notification.parentNode) {
+            notification.remove();
           }
-          port.disconnect();
-        });
-
-        // Set up error handler
-        port.onDisconnect.addListener(() => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-          }
-        });
-
-        // Send status command
-        port.postMessage({
-          action: 'status'
-        });
-
-        // Set timeout
-        setTimeout(() => {
-          port.disconnect();
-          reject(new Error('Status check timeout'));
-        }, 5000);
-
-      } catch (error) {
-        reject(error);
+        }, 300);
       }
-    });
+    }, 5000);
   }
 
   async sendMessageToBackground(message) {

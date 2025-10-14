@@ -84,9 +84,14 @@
         <div class="settings-section">
           <h3>VPN Configuration</h3>
           <div class="form-group">
-            <label for="vpnPath">Surfshark CLI Path:</label>
-            <input type="text" id="vpnPath" placeholder="/usr/local/bin/surfshark-vpn">
-            <small>Path to your Surfshark CLI executable</small>
+            <p style="margin: 0 0 12px 0; color: #666; font-size: 13px;">
+              This extension works with the Surfshark Chrome extension. 
+              <a href="https://chrome.google.com/webstore/detail/surfshark-vpn-extension/ailoabdmgclmfmhdagmlohpjlbpffblp" target="_blank" style="color: #e50914;">Install it here</a> if you haven't already.
+            </p>
+            <div id="surfsharkStatus" class="vpn-status-indicator">
+              <span class="status-dot"></span>
+              <span class="status-text">Checking...</span>
+            </div>
           </div>
         </div>
 
