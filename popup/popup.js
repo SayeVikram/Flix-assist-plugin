@@ -75,13 +75,18 @@ class FlixAssistPopup {
     this.showLoading(true);
     
     try {
+      console.log('Searching for:', query);
+      console.log('API Key configured:', !!this.settings.apiKey);
+      
       const results = await this.searchContent(query);
+      console.log('Search results:', results);
+      
       this.searchResults = results;
       this.addToHistory(query);
       this.displayResults(results);
     } catch (error) {
       console.error('Search error:', error);
-      this.showToast('Search failed. Please try again.', 'error');
+      this.showToast(`Search failed: ${error.message}`, 'error');
       this.showNoResults();
     } finally {
       this.showLoading(false);
@@ -89,9 +94,35 @@ class FlixAssistPopup {
   }
 
   async searchContent(query) {
-    // This will be implemented in the API utility
-    const api = new NetflixAPI(this.settings.apiKey);
-    return await api.searchTitles(query);
+    try {
+      // Send search request to background script
+      const response = await this.sendMessageToBackground({
+        action: 'searchContent',
+        query: query,
+        apiKey: this.settings.apiKey
+      });
+
+      if (response.success) {
+        return response.data;
+      } else {
+        throw new Error(response.error || 'Search failed');
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      throw error;
+    }
+  }
+
+  async sendMessageToBackground(message) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(message, (response) => {
+        if (chrome.runtime.lastError) {
+          resolve({ success: false, error: chrome.runtime.lastError.message });
+        } else {
+          resolve(response || { success: false, error: 'No response' });
+        }
+      });
+    });
   }
 
   displayResults(results) {
@@ -348,6 +379,12 @@ class FlixAssistPopup {
       } else {
         statusDot.className = 'status-dot disconnected';
         statusText.textContent = 'Surfshark extension not found';
+        
+        // Add debugging info
+        console.log('Surfshark extension not found. Please check:');
+        console.log('1. Is the Surfshark extension installed?');
+        console.log('2. Is it enabled in chrome://extensions/');
+        console.log('3. Check the browser console for more details');
       }
     } catch (error) {
       console.error('Error checking Surfshark extension:', error);

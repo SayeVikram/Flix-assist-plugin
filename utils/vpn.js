@@ -85,8 +85,40 @@ class VPNController {
 
   async checkSurfsharkExtension() {
     try {
-      const extension = await chrome.management.get(this.surfsharkExtensionId);
-      return extension && extension.enabled;
+      // Try multiple possible Surfshark extension IDs
+      const possibleIds = [
+        'ailoabdmgclmfmhdagmlohpjlbpffblp', // Official Surfshark extension ID
+        'ailoabdmgclmfmhdagmlohpjlbpffblp', // Alternative ID
+      ];
+
+      // Also search by name in case the ID is different
+      const allExtensions = await chrome.management.getAll();
+      const surfsharkExtensions = allExtensions.filter(ext => 
+        ext.name.toLowerCase().includes('surfshark') && ext.enabled
+      );
+
+      if (surfsharkExtensions.length > 0) {
+        // Use the first found Surfshark extension
+        this.surfsharkExtensionId = surfsharkExtensions[0].id;
+        console.log('Found Surfshark extension:', surfsharkExtensions[0]);
+        return true;
+      }
+
+      // Fallback: try the known ID
+      try {
+        const extension = await chrome.management.get(this.surfsharkExtensionId);
+        return extension && extension.enabled;
+      } catch (idError) {
+        console.log('Known Surfshark ID not found, checking all extensions...');
+        
+        // Debug: log all installed extensions
+        console.log('All installed extensions:');
+        allExtensions.forEach(ext => {
+          console.log(`- ${ext.name} (${ext.id}): ${ext.enabled ? 'enabled' : 'disabled'}`);
+        });
+        
+        return false;
+      }
     } catch (error) {
       console.error('Error checking Surfshark extension:', error);
       return false;
@@ -95,12 +127,17 @@ class VPNController {
 
   async guideUserToConnect(countryCode) {
     try {
-      // Open Surfshark extension popup
-      await chrome.management.launchApp(this.surfsharkExtensionId);
+      // Try to open Surfshark extension popup
+      try {
+        await chrome.management.launchApp(this.surfsharkExtensionId);
+      } catch (launchError) {
+        console.warn('Could not launch Surfshark extension:', launchError);
+        // Fallback: provide manual instructions
+      }
       
       // Show instructions to user
       const countryName = this.getCountryName(countryCode);
-      const message = `Please connect to ${countryName} in the Surfshark extension that just opened. Look for servers in ${countryName} and click connect.`;
+      const message = `Please open your Surfshark extension and connect to ${countryName}. Look for servers in ${countryName} and click connect.`;
       
       // Show notification
       this.showNotification(message, 'info');

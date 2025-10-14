@@ -52,7 +52,9 @@ class FlixAssistServiceWorker {
     try {
       switch (request.action) {
         case 'searchContent':
+          console.log('Background: Received search request for:', request.query);
           const results = await this.searchContent(request.query, request.apiKey);
+          console.log('Background: Search results:', results);
           sendResponse({ success: true, data: results });
           break;
 
@@ -129,22 +131,30 @@ class FlixAssistServiceWorker {
       return cached;
     }
 
+    // Build URL with query parameters
+    const url = new URL('https://unogs-unogs-v1.p.rapidapi.com/search/titles');
+    url.searchParams.append('query', query);
+    url.searchParams.append('order_by', 'relevance');
+    url.searchParams.append('type', 'movie,series');
+    url.searchParams.append('limit', '50');
+
+    console.log('Background: Making API request to:', url.toString());
+    console.log('Background: API Key provided:', !!apiKey);
+
     // Make API request
-    const response = await fetch('https://unogs-unogs-v1.p.rapidapi.com/search/titles', {
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'X-RapidAPI-Key': apiKey,
-        'X-RapidAPI-Host': 'unogs-unogs-v1.p.rapidapi.com'
-      },
-      params: {
-        query: query,
-        order_by: 'relevance',
-        type: 'movie,series'
+        'X-RapidAPI-Host': 'unogs-unogs-v1.p.rapidapi.com',
+        'Accept': 'application/json'
       }
     });
 
+    console.log('Background: API response status:', response.status);
+
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.status}`);
+      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
