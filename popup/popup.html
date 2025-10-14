@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flix Assist</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <h1>🎬 Flix Assist</h1>
+      </div>
+      <div class="status-indicator" id="vpnStatus">
+        <span class="status-dot"></span>
+        <span class="status-text">Checking...</span>
+      </div>
+    </header>
+
+    <!-- Search Section -->
+    <section class="search-section">
+      <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Search for movies or shows..." autocomplete="off">
+        <button id="searchBtn" class="search-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+          </svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="search">Search</button>
+      <button class="tab-btn" data-tab="favorites">Favorites</button>
+      <button class="tab-btn" data-tab="history">History</button>
+      <button class="tab-btn" data-tab="settings">Settings</button>
+    </nav>
+
+    <!-- Content Areas -->
+    <main class="content">
+      <!-- Search Results Tab -->
+      <div class="tab-content active" id="searchTab">
+        <div class="loading" id="loading" style="display: none;">
+          <div class="spinner"></div>
+          <p>Searching...</p>
+        </div>
+        <div class="results" id="searchResults"></div>
+        <div class="no-results" id="noResults" style="display: none;">
+          <p>No results found. Try a different search term.</p>
+        </div>
+      </div>
+
+      <!-- Favorites Tab -->
+      <div class="tab-content" id="favoritesTab">
+        <div class="empty-state" id="emptyFavorites">
+          <p>No favorites yet. Search and add some content!</p>
+        </div>
+        <div class="favorites-list" id="favoritesList"></div>
+      </div>
+
+      <!-- History Tab -->
+      <div class="tab-content" id="historyTab">
+        <div class="empty-state" id="emptyHistory">
+          <p>No search history yet.</p>
+        </div>
+        <div class="history-list" id="historyList"></div>
+      </div>
+
+      <!-- Settings Tab -->
+      <div class="tab-content" id="settingsTab">
+        <div class="settings-section">
+          <h3>API Configuration</h3>
+          <div class="form-group">
+            <label for="apiKey">uNoGS API Key:</label>
+            <input type="password" id="apiKey" placeholder="Enter your RapidAPI key">
+            <small>Get your API key from <a href="https://rapidapi.com/unogs/api/unogs-unogs-v1" target="_blank">RapidAPI</a></small>
+          </div>
+        </div>
+        
+        <div class="settings-section">
+          <h3>VPN Configuration</h3>
+          <div class="form-group">
+            <label for="vpnPath">Surfshark CLI Path:</label>
+            <input type="text" id="vpnPath" placeholder="/usr/local/bin/surfshark-vpn">
+            <small>Path to your Surfshark CLI executable</small>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Preferences</h3>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="autoConnect">
+              <span class="checkmark"></span>
+              Auto-connect to VPN when country is selected
+            </label>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="darkMode">
+              <span class="checkmark"></span>
+              Dark mode
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-actions">
+          <button id="saveSettings" class="btn btn-primary">Save Settings</button>
+          <button id="testConnection" class="btn btn-secondary">Test VPN Connection</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+  </div>
+
+  <script src="../utils/storage.js"></script>
+  <script src="../utils/api.js"></script>
+  <script src="../utils/vpn.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
